@@ -5,14 +5,12 @@ on:
   pull_request:
     branches:
       - main
-    paths:
-      - 'scripts/**'
-      - '.github/workflows/**'
   push:
     branches:
       - main
     paths:
       - 'scripts/**'
+      - '.sqlfluff'
       - '.github/workflows/**'
 
 jobs:
