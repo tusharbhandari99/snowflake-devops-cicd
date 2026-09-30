@@ -1,0 +1,90 @@
+$workflowYaml = @'
+name: Snowflake Native GitOps CI/CD
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'scripts/**'
+  push:
+    branches:
+      - main
+    paths:
+      - 'scripts/**'
+
+jobs:
+  validate:
+    name: Lint SQL Scripts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install SQLFluff
+        run: |
+          pip install --upgrade pip
+          pip install sqlfluff
+
+      - name: Lint SQL Files
+        run: |
+          sqlfluff lint scripts/ --dialect snowflake
+
+  deploy:
+    name: Deploy via Native Snowflake Git Stage
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Snowflake CLI
+        run: |
+          pip install --upgrade pip
+          pip install snowflake-cli-labs
+
+      - name: Configure SnowCLI Connection
+        run: |
+          mkdir -p ~/.snowflake
+          cat <<EOF > ~/.snowflake/config.toml
+          default_connection_name = "cicd_env"
+
+          [connections.cicd_env]
+          account = "${{ secrets.SNOWFLAKE_ACCOUNT }}"
+          user = "${{ secrets.SNOWFLAKE_USER }}"
+          password = "${{ secrets.SNOWFLAKE_PASSWORD }}"
+          role = "${{ secrets.SNOWFLAKE_ROLE }}"
+          warehouse = "${{ secrets.SNOWFLAKE_WAREHOUSE }}"
+          database = "${{ secrets.SNOWFLAKE_DATABASE }}"
+          schema = "${{ secrets.SNOWFLAKE_SCHEMA }}"
+          EOF
+
+      - name: Test Connection
+        run: |
+          snow connection test -c cicd_env
+
+      - name: Fetch Latest Commit in Snowflake Git Stage
+        run: |
+          snow sql -q "ALTER GIT REPOSITORY CI_CD.DEMO.ABCD_GIT_REPO FETCH;" -c cicd_env
+
+      - name: Execute Deployment Script from Git Stage
+        run: |
+          snow sql -q "EXECUTE IMMEDIATE FROM @CI_CD.DEMO.ABCD_GIT_REPO/branches/main/scripts/deploy_objects.sql;" -c cicd_env
+'@
+
+[System.IO.File]::WriteAllText(
+    (Join-Path (Get-Location) ".github\workflows\snowflake_cicd.yml"),
+    $workflowYaml,
+    (New-Object System.Text.UTF8Encoding($false))
+)
