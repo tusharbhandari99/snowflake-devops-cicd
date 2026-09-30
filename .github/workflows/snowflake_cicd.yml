@@ -1,16 +1,19 @@
 name: Snowflake Native GitOps CI/CD
 
 on:
+  workflow_dispatch:
   pull_request:
     branches:
       - main
     paths:
       - 'scripts/**'
+      - '.github/workflows/**'
   push:
     branches:
       - main
     paths:
       - 'scripts/**'
+      - '.github/workflows/**'
 
 jobs:
   validate:
@@ -37,7 +40,7 @@ jobs:
   deploy:
     name: Deploy via Native Snowflake Git Stage
     needs: validate
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
