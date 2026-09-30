@@ -1,4 +1,3 @@
-$workflowYaml = @'
 name: Snowflake Native GitOps CI/CD
 
 on:
@@ -81,10 +80,3 @@ jobs:
       - name: Execute Deployment Script from Git Stage
         run: |
           snow sql -q "EXECUTE IMMEDIATE FROM @CI_CD.DEMO.ABCD_GIT_REPO/branches/main/scripts/deploy_objects.sql;" -c cicd_env
-'@
-
-[System.IO.File]::WriteAllText(
-    (Join-Path (Get-Location) ".github\workflows\snowflake_cicd.yml"),
-    $workflowYaml,
-    (New-Object System.Text.UTF8Encoding($false))
-)
